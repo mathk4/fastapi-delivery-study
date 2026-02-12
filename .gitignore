@@ -1,3 +1,6 @@
 venv/
 __pycache__/
-database/delivery.db
+
+
+database/*.db
+!database/.gitkeep
