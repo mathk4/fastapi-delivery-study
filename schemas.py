@@ -9,4 +9,10 @@ class UsuarioSchema(BaseModel):
     admin: Optional[bool] = False
 
     class Config:
-        from_atribute = True
+        from_attributes = True
+
+class PedidoSchema(BaseModel):
+    usuario: int
+
+    class Config:
+        from_attributes = True
