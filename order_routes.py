@@ -2,8 +2,8 @@ from fastapi import APIRouter, HTTPException
 from sqlalchemy.orm import Session
 from fastapi import Depends
 from dependences import pegar_sessao, verificar_token
-from schemas import PedidoSchema
-from models import Pedido, Usuario
+from schemas import PedidoSchema, ItemPedidoSchema
+from models import Pedido, Usuario, ItensPedido
 
 order_router = APIRouter(prefix="/orders", tags=["orders"], dependencies=[Depends(verificar_token)])
 
@@ -26,7 +26,7 @@ async def cancelar_pedido(id_pedido: int, session: Session = Depends(pegar_sessa
     pedido = session.query(Pedido).filter(Pedido.id_pedido == id_pedido).first()
     if not pedido:
         raise HTTPException(status_code=400, detail="Pedido não encontrado")
-    if not usuario.admin or usuario.id_usuario != pedido.usuario:
+    if not usuario.admin and usuario.id_usuario != pedido.usuario:
         raise HTTPException(status_code=401, detail="Autorização negada")
 
     pedido.status = "CANCELADO"
@@ -44,4 +44,26 @@ async def listar_pedidos(session: Session = Depends(pegar_sessao), usuario: Usua
         pedidos = session.query(Pedido).all()
         return {
             'pedidos': pedidos
+        }
+
+@order_router.post("/pedido/adicionar_item/{id_pedido}")
+async def adicionar_item_pedido(id_pedido: int, item_pedido_schema: ItemPedidoSchema, session: Session = Depends(pegar_sessao), usuario: Usuario = Depends(verificar_token)):
+    pedido = session.query(Pedido).filter(Pedido.id_pedido == id_pedido).first()
+
+    if not pedido:
+        raise HTTPException(status_code=400, detail="Pedido não encontrado")
+    if not usuario.admin and usuario.id_usuario != pedido.usuario:
+        raise HTTPException(status_code=401, detail="Autorização negada")
+    
+    item_pedido = ItensPedido(id_pedido, item_pedido_schema.quantidade, item_pedido_schema.sabor, item_pedido_schema.tamanho, item_pedido_schema.preco_unitario)
+
+    session.add(item_pedido)
+    pedido.calcular_preco_total()
+
+    
+    session.commit()
+    return {
+        'mensagem': "item adicionado ao pedido com sucesso!",
+        'id_item': item_pedido.id_item,
+        'preço_pedido_total': pedido.preco
         }
